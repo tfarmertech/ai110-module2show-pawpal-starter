@@ -6,12 +6,19 @@
 
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
+1a. Initial design
+PawPal+ is built around four classes split between data and behavior.
+Owner holds contact info, a daily time budget (available_minutes), preferences, and a list of pets, with methods to manage pets (add_pet, remove_pet, list_pets).
+Pet is a dataclass storing a pet's basic info (name, species, breed, age, notes) and its tasks, with methods to manage those tasks (add_task, edit_task, remove_task).
+Task is a dataclass describing a single care task (title, duration, priority, recurrence, category, preferred time, completed), with methods to support scheduling (priority_score(), is_due_today()).
+Scheduler is the brains of the system: given tasks and constraints (time budget, start time, preferences), it sorts tasks, builds a time-boxed daily plan, and explains the reasoning behind it.
+Relationships: an Owner owns many Pets, a Pet has many Tasks, and Scheduler operates on Tasks/Pet without owning them. Keeping data (Pet, Task) separate from behavior (Owner, Scheduler) keeps the scheduling logic isolated and easier to test.
 
 **b. Design changes**
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
-
+No changes
 ---
 
 ## 2. Scheduling Logic and Tradeoffs
