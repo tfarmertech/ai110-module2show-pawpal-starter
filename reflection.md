@@ -28,10 +28,17 @@ No changes
 - What constraints does your scheduler consider (for example: time, priority, preferences)?
 - How did you decide which constraints mattered most?
 
+My scheduler considers time budget (`available_minutes`), start time, task priority (high/medium/low), and duration. Tasks are sorted by priority first, then shortest duration as a tiebreaker, and time-boxed until the budget runs out — anything that doesn't fit is skipped and explained.
+
+Priority and time budget mattered most since they map to real stakes — a high-priority task like meds shouldn't lose its slot to a lower-priority one just because it was added first. Duration as a tiebreaker keeps the schedule efficient. Owner "preferences" exist as a data field but aren't factored into scheduling yet — a reasonable next step, not essential for v1.
+
 **b. Tradeoffs**
 
 - Describe one tradeoff your scheduler makes.
 - Why is that tradeoff reasonable for this scenario?
+**2b. Tradeoffs**
+
+My original `detect_conflicts()` warned on every pairwise match (`itertools.combinations`) — clear, but O(k²) and repetitive with 3+ clashing tasks. I simplified it to group tasks by time first (O(k)), emitting one combined warning per clashing slot (e.g., "Conflict at 08:00: 'Morning walk' and 'Meds'"), trading exact wording match to my original spec for better efficiency and readability. Separately, conflict detection only checks exact time matches, not overlapping durations — so a 30-minute task at 08:00 and one starting at 08:15 wouldn't be flagged despite overlapping. I left this as a known limitation to keep detection simple for this phase.
 
 ---
 

@@ -320,14 +320,29 @@ else:
 
                 save_col, del_col = st.columns(2)
                 if save_col.form_submit_button("Save changes"):
+                    was_completed = current.completed
                     selected_pet.edit_task(
                         task_id,
                         title=e_title.strip() or current.title,
                         duration_minutes=int(e_duration),
                         priority=e_priority,
-                        completed=e_completed,
                     )
-                    set_flash("success", "Task updated.")
+                    if e_completed and not was_completed:
+                        # Marking complete spawns the next occurrence for recurring tasks.
+                        next_task = selected_pet.complete_task(task_id)
+                        if next_task is not None:
+                            set_flash(
+                                "success",
+                                f"Task completed. Next {next_task.recurrence} "
+                                f"occurrence added (due {next_task.due_date}).",
+                            )
+                        else:
+                            set_flash("success", "Task completed.")
+                    elif not e_completed and was_completed:
+                        selected_pet.edit_task(task_id, completed=False)
+                        set_flash("success", "Task updated.")
+                    else:
+                        set_flash("success", "Task updated.")
                     st.rerun()
                 if del_col.form_submit_button("Delete task"):
                     selected_pet.remove_task(task_id)

@@ -7,7 +7,12 @@ See diagrams/uml.mmd for the class diagram.
 from __future__ import annotations
 
 import itertools
+from collections import defaultdict
 from dataclasses import dataclass, field
+from datetime import date, timedelta
+
+# How many days ahead the next occurrence of a recurring task falls due.
+_RECURRENCE_DAYS = {"daily": 1, "weekly": 7}
 
 # Monotonic id source so every Task gets a unique, stable identifier.
 _task_ids = itertools.count(1)
@@ -27,6 +32,11 @@ def _format_time(total_minutes: int) -> str:
     return f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
 
 
+def _pet_name(pet) -> str:
+    """Return a pet's name, or 'unknown' when the task has no associated pet."""
+    return pet.name if pet else "unknown"
+
+
 @dataclass
 class Task:
     """A single pet-care task (walk, feeding, meds, enrichment, grooming, etc.)."""
@@ -39,11 +49,26 @@ class Task:
     preferred_time: str | None = None  # e.g. "08:00"
     completed: bool = False
     due_weekday: int | None = None     # 0=Mon..6=Sun; used by "weekly" recurrence
+    due_date: date | None = None       # when this occurrence is due (recurring tasks)
     id: int = field(default_factory=lambda: next(_task_ids))
 
-    def mark_complete(self) -> None:
-        """Mark this task as done."""
+    def mark_complete(self) -> Task | None:
+        """Mark this task done; for daily/weekly tasks, return the next occurrence."""
         self.completed = True
+        days = _RECURRENCE_DAYS.get(self.recurrence)
+        if days is None:  # "once" (or anything non-recurring) spawns nothing
+            return None
+        return Task(
+            title=self.title,
+            duration_minutes=self.duration_minutes,
+            priority=self.priority,
+            recurrence=self.recurrence,
+            category=self.category,
+            preferred_time=self.preferred_time,
+            completed=False,
+            due_weekday=self.due_weekday,
+            due_date=date.today() + timedelta(days=days),
+        )
 
     def priority_score(self) -> int:
         """Return a numeric weight for this task's priority (higher = sooner)."""
@@ -95,6 +120,14 @@ class Pet:
         """Remove the task matching `task_id`; raise ValueError if not found."""
         task = self._find_task(task_id)
         self.tasks.remove(task)
+
+    def complete_task(self, task_id: int) -> Task | None:
+        """Mark a task complete and, if recurring, add its next occurrence to this pet."""
+        task = self._find_task(task_id)
+        next_task = task.mark_complete()
+        if next_task is not None:
+            self.add_task(next_task)
+        return next_task
 
 
 class Owner:
@@ -173,6 +206,39 @@ class Scheduler:
     def sort_tasks(self, tasks: list[Task]) -> list[Task]:
         """Order tasks by priority (high first), then shorter duration as tiebreaker."""
         return sorted(tasks, key=lambda t: (-t.priority_score(), t.duration_minutes))
+
+    def sort_by_time(self, tasks: list[Task]) -> list[Task]:
+        """Order tasks by preferred_time ('HH:MM'); those without a time go last."""
+        return sorted(tasks, key=lambda t: (t.preferred_time is None, t.preferred_time or ""))
+
+    def filter_tasks(self, items, pet_name=None, completed=None):
+        """Filter Tasks or (pet, task) pairs by pet name and/or completion (both optional)."""
+        result = []
+        for item in items:
+            pet, task = self._normalize(item)
+            if pet_name is not None and (pet is None or pet.name != pet_name):
+                continue
+            if completed is not None and task.completed != completed:
+                continue
+            result.append(item)  # preserve the caller's shape (Task or pair)
+        return result
+
+    def detect_conflicts(self, items) -> list[str]:
+        """Return warnings for tasks sharing an exact preferred_time (simple match, not overlap)."""
+        # NOTE: known simplification — this checks exact preferred_time equality only,
+        # not full start+duration overlap.
+        by_time = defaultdict(list)
+        for item in items:
+            pet, task = self._normalize(item)
+            if task.preferred_time:
+                by_time[task.preferred_time].append((pet, task))
+
+        return [
+            f"Conflict: '{t1.title}' ({_pet_name(p1)}) and '{t2.title}' "
+            f"({_pet_name(p2)}) are both scheduled at {time}"
+            for time, group in sorted(by_time.items())
+            for (p1, t1), (p2, t2) in itertools.combinations(group, 2)
+        ]
 
     def generate_plan(self, tasks) -> list[ScheduledItem]:
         """Build a time-boxed plan that fits the budget, skipping tasks that don't fit.

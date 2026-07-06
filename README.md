@@ -42,18 +42,35 @@ pip install -r requirements.txt
 6. Connect your logic to the Streamlit UI in `app.py`.
 7. Refine UML so it matches what you actually built.
 
-## 🖥️ Sample Output
 
-Paste a sample of your app's CLI or Streamlit output here so a reader can see what a generated plan looks like:
+## Sample Output
 
 ```
-# e.g.:
-# Daily plan for Biscuit (Golden Retriever):
-#   08:00 — Morning walk (30 min) [priority: high]
-#   09:00 — Feeding (10 min) [priority: high]
-#   ...
+Owner: Jordan  |  Time budget: 90 min
+Today's Schedule
+====================================================
+  TIME   PET       TASK               PRIORITY
+  ------ --------- ------------------ --------
+  08:00  Mochi     Meds               high
+  08:05  Mochi     Feeding            high
+  08:15  Biscuit   Morning walk       high
+  08:45  Mochi     Play/enrichment    medium
+Why this plan:
+Plan uses 65 of 90 available minutes starting at 08:00.
+Included (ordered by priority, then shortest first):
+  Included 'Meds' for Mochi (high priority) at 08:00 - 5 min
+  Included 'Feeding' for Mochi (high priority) at 08:05 - 10 min
+  Included 'Morning walk' for Biscuit (high priority) at 08:15 - 30 min
+  Included 'Play/enrichment' for Mochi (medium priority) at 08:45 - 20 min
+Skipped:
+  Skipped 'Grooming' for Biscuit - not enough time remaining
 ```
 
+## Test Results
+
+```
+7 passed in 0.05s
+```
 ## 🧪 Testing PawPal+
 
 ```bash
@@ -74,12 +91,10 @@ Sample test output:
 
 > Fill in once you've implemented scheduling logic.
 
-| Feature | Method(s) | Notes |
-|---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+- **Sorting by time** — `Scheduler.sort_by_time()` sorts tasks by their `preferred_time` (HH:MM), pushing untimed tasks to the end.
+- **Filtering** — `Scheduler.filter_tasks()` filters tasks by pet name and/or completion status, independently or combined.
+- **Recurring tasks** — `Task.mark_complete()` automatically creates the next occurrence for "daily" (+1 day) and "weekly" (+7 days) tasks, re-adding it to the pet's task list. "Once" tasks create no new instance.
+- **Conflict detection** — `Scheduler.detect_conflicts()` flags tasks scheduled at the exact same `preferred_time`, returning warning messages instead of crashing. Known limitation: it checks exact time matches only, not overlapping durations.
 
 ## 📸 Demo Walkthrough
 
