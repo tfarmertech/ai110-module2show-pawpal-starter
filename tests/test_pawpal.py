@@ -1,5 +1,7 @@
 """Tests for PawPal+ core behaviors: tasks, pets, and scheduling."""
 
+from datetime import date, timedelta
+
 import pytest
 
 from pawpal_system import Owner, Pet, Scheduler, Task
@@ -180,3 +182,82 @@ def test_detect_conflicts_flags_same_time_and_ignores_untimed():
     assert len(warnings) == 1
     assert "08:00" in warnings[0]
     assert "Morning walk" in warnings[0] and "Meds" in warnings[0]
+
+
+# --- Phase 5: edge cases --------------------------------------------------
+
+def test_pet_with_zero_tasks_does_not_crash():
+    """A pet with no tasks yields empty schedule/sort/filter results without erroring."""
+    owner = Owner(name="Jordan")
+    empty_pet = Pet(name="Ghost", species="cat")  # deliberately no tasks
+    owner.add_pet(empty_pet)
+    sched = Scheduler()
+    pairs = owner.get_all_tasks()
+
+    assert pairs == []
+    assert sched.generate_plan(pairs) == []
+    assert sched.sort_tasks(empty_pet.tasks) == []
+    assert sched.sort_by_time(empty_pet.tasks) == []
+    assert sched.filter_tasks(pairs, pet_name="Ghost") == []
+
+
+def test_sort_by_time_all_untimed_no_crash():
+    """sort_by_time() returns every task (original order) when none have a preferred_time."""
+    tasks = [Task("A", 10), Task("B", 5), Task("C", 20)]
+    ordered = Scheduler().sort_by_time(tasks)
+    assert [t.title for t in ordered] == ["A", "B", "C"]
+
+
+def test_detect_conflicts_same_pet_same_time():
+    """Two tasks on the SAME pet at the same preferred_time are flagged as a conflict."""
+    pet = Pet(name="Biscuit", species="dog")
+    pet.add_task(Task("Walk", 30, preferred_time="08:00"))
+    pet.add_task(Task("Feeding", 10, preferred_time="08:00"))
+    warnings = Scheduler().detect_conflicts([(pet, t) for t in pet.tasks])
+    assert len(warnings) == 1
+    assert "08:00" in warnings[0]
+    assert "Walk" in warnings[0] and "Feeding" in warnings[0]
+
+
+def test_detect_conflicts_same_and_cross_pet_at_one_time():
+    """A time shared by same-pet and cross-pet tasks yields one warning per clashing pair."""
+    biscuit = Pet(name="Biscuit", species="dog")
+    mochi = Pet(name="Mochi", species="cat")
+    biscuit.add_task(Task("Walk", 30, preferred_time="08:00"))
+    biscuit.add_task(Task("Brush", 10, preferred_time="08:00"))  # same-pet clash
+    mochi.add_task(Task("Meds", 5, preferred_time="08:00"))       # cross-pet clash
+    pairs = [
+        (biscuit, biscuit.tasks[0]),
+        (biscuit, biscuit.tasks[1]),
+        (mochi, mochi.tasks[0]),
+    ]
+    warnings = Scheduler().detect_conflicts(pairs)
+    assert len(warnings) == 3  # C(3, 2) = 3 pairs all at 08:00
+    assert all("08:00" in w for w in warnings)
+
+
+def test_filter_and_detect_on_empty_list_return_empty():
+    """filter_tasks() and detect_conflicts() return [] on empty input instead of erroring."""
+    sched = Scheduler()
+    assert sched.filter_tasks([]) == []
+    assert sched.filter_tasks([], pet_name="Nobody", completed=True) == []
+    assert sched.detect_conflicts([]) == []
+
+
+def test_complete_task_once_adds_no_new_task():
+    """Completing a 'once' task via Pet.complete_task() adds no new task to the pet."""
+    pet = Pet(name="Biscuit", species="dog")
+    pet.add_task(Task("Vet visit", 60, recurrence="once"))
+    result = pet.complete_task(pet.tasks[0].id)
+    assert result is None
+    assert len(pet.tasks) == 1
+    assert pet.tasks[0].completed is True
+
+
+def test_mark_complete_creates_next_weekly_occurrence():
+    """Completing a weekly task returns a fresh instance due 7 days out."""
+    task = Task("Grooming", 45, recurrence="weekly")
+    nxt = task.mark_complete()
+    assert nxt is not None
+    assert nxt.completed is False
+    assert nxt.due_date == date.today() + timedelta(days=7)

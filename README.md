@@ -73,19 +73,39 @@ Skipped:
 ```
 ## 🧪 Testing PawPal+
 
-```bash
-# Run the full test suite:
-pytest
-
-# Run with coverage:
-pytest --cov
-```
-
-Sample test output:
+### Sample test run
 
 ```
-# Paste your pytest output here
+$ python -m pytest -v
+================================================= test session starts =================================================
+platform win32 -- Python 3.13.3, pytest-9.1.1, pluggy-1.6.0
+collected 20 items
+
+tests/test_pawpal.py::test_mark_complete PASSED                                                                  [  5%]
+tests/test_pawpal.py::test_add_task_increases_count PASSED                                                       [ 10%]
+tests/test_pawpal.py::test_sort_tasks_orders_by_priority_then_duration PASSED                                    [ 15%]
+tests/test_pawpal.py::test_generate_plan_respects_time_budget PASSED                                             [ 20%]
+tests/test_pawpal.py::test_edit_task_updates_and_raises_on_bad_id PASSED                                         [ 25%]
+tests/test_pawpal.py::test_remove_task_removes_and_raises_on_bad_id PASSED                                       [ 30%]
+tests/test_pawpal.py::test_owner_get_all_tasks_flattens_across_pets PASSED                                       [ 35%]
+tests/test_pawpal.py::test_sort_by_time_puts_untimed_tasks_last PASSED                                           [ 40%]
+tests/test_pawpal.py::test_filter_tasks_by_pet_and_completion PASSED                                             [ 45%]
+tests/test_pawpal.py::test_mark_complete_creates_next_daily_occurrence PASSED                                    [ 50%]
+tests/test_pawpal.py::test_mark_complete_once_creates_nothing PASSED                                             [ 55%]
+tests/test_pawpal.py::test_complete_task_readds_recurring_instance_to_pet PASSED                                 [ 60%]
+tests/test_pawpal.py::test_detect_conflicts_flags_same_time_and_ignores_untimed PASSED                           [ 65%]
+tests/test_pawpal.py::test_pet_with_zero_tasks_does_not_crash PASSED                                             [ 70%]
+tests/test_pawpal.py::test_sort_by_time_all_untimed_no_crash PASSED                                              [ 75%]
+tests/test_pawpal.py::test_detect_conflicts_same_pet_same_time PASSED                                            [ 80%]
+tests/test_pawpal.py::test_detect_conflicts_same_and_cross_pet_at_one_time PASSED                                [ 85%]
+tests/test_pawpal.py::test_filter_and_detect_on_empty_list_return_empty PASSED                                   [ 90%]
+tests/test_pawpal.py::test_complete_task_once_adds_no_new_task PASSED                                            [ 95%]
+tests/test_pawpal.py::test_mark_complete_creates_next_weekly_occurrence PASSED                                   [100%]
+
+================================================== 20 passed in 0.05s ==================================================
 ```
+```
+
 
 ## 📐 Smarter Scheduling
 
