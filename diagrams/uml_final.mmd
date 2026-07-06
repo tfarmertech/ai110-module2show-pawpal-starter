@@ -1,0 +1,76 @@
+classDiagram
+    %% Final PawPal+ design — matches pawpal_system.py after Phases 2-6.
+    %% Private helpers (_find_task, _normalize, _parse_time, _pet_name) are omitted.
+    %% Scheduler holds NO Owner reference: it operates on Task or (Pet, Task) items.
+    %% The (Pet, Task) pairs come from Owner.get_all_tasks(), wired up in app.py/main.py.
+
+    class Owner {
+        +str name
+        +str email
+        +int available_minutes
+        +dict preferences
+        +list~Pet~ pets
+        +add_pet(pet) None
+        +remove_pet(name) None
+        +list_pets() list~Pet~
+        +get_all_tasks() list
+    }
+
+    class Pet {
+        +str name
+        +str species
+        +str breed
+        +int age
+        +str notes
+        +list~Task~ tasks
+        +add_task(task) None
+        +edit_task(task_id, **changes) Task
+        +remove_task(task_id) None
+        +complete_task(task_id) Task
+    }
+
+    class Task {
+        +str title
+        +int duration_minutes
+        +str priority
+        +str recurrence
+        +str category
+        +str preferred_time
+        +bool completed
+        +int due_weekday
+        +date due_date
+        +int id
+        +mark_complete() Task
+        +priority_score() int
+        +is_due_today(weekday) bool
+    }
+
+    class ScheduledItem {
+        +str start_time
+        +str pet_name
+        +str title
+        +int duration_minutes
+        +str priority
+    }
+
+    class Scheduler {
+        +int available_minutes
+        +str start_time
+        +dict preferences
+        +list skipped
+        +sort_tasks(tasks) list~Task~
+        +sort_by_time(tasks) list~Task~
+        +filter_tasks(items, pet_name, completed) list
+        +detect_conflicts(items) list~str~
+        +generate_plan(items) list~ScheduledItem~
+        +explain(plan) str
+    }
+
+    Owner "1" --> "*" Pet : owns
+    Pet "1" --> "*" Task : has
+    Owner ..> Task : get_all_tasks() flattens
+    Scheduler ..> Task : sorts, filters, schedules
+    Scheduler ..> Pet : reads pet.name (via (Pet, Task) pairs)
+    Scheduler ..> ScheduledItem : produces
+    Task ..> Task : mark_complete() spawns next occurrence
+    Pet ..> Task : complete_task() re-adds recurring instance

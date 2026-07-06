@@ -357,16 +357,63 @@ st.divider()
 st.subheader("Today's Plan")
 
 if st.button("Generate schedule", type="primary"):
+    # Persist so the filter widgets below can re-render results on their own
+    # reruns without the user having to click "Generate schedule" again.
+    st.session_state.plan_generated = True
+
+if st.session_state.get("plan_generated"):
     scheduler = Scheduler(
         available_minutes=owner.available_minutes,
         start_time=st.session_state.start_time,
     )
-    pairs = owner.get_all_tasks()  # flat [(pet, task), ...] across all pets
+    all_pairs = owner.get_all_tasks()  # flat [(pet, task), ...] across all pets
 
-    if not pairs:
-        st.warning("No tasks to schedule yet. Add pets and tasks above.")
+    if not all_pairs:
+        st.info("No tasks to schedule yet. Add pets and tasks above.")
     else:
+        # --- Filter controls, wired to Scheduler.filter_tasks() ---
+        pet_options = ["All pets", *[p.name for p in owner.list_pets()]]
+        if st.session_state.get("plan_pet_filter") not in pet_options:
+            st.session_state.plan_pet_filter = "All pets"  # a filtered pet was removed
+        fc1, fc2 = st.columns(2)
+        with fc1:
+            pet_filter = st.selectbox("Filter by pet", pet_options, key="plan_pet_filter")
+        with fc2:
+            status_filter = st.selectbox(
+                "Filter by status",
+                ["All", "Incomplete only", "Completed only"],
+                key="plan_status_filter",
+            )
+        pet_name = None if pet_filter == "All pets" else pet_filter
+        completed = {"All": None, "Incomplete only": False, "Completed only": True}[status_filter]
+        pairs = scheduler.filter_tasks(all_pairs, pet_name=pet_name, completed=completed)
+
+        # --- Conflicts surfaced FIRST, as warnings (separate from success msgs) ---
+        for warning in scheduler.detect_conflicts(pairs):
+            st.warning("⚠️ " + warning)
+
+        # --- Time-boxed schedule as a clean table ---
         plan = scheduler.generate_plan(pairs)
+        if plan:
+            st.markdown("**Today's Schedule**")
+            st.dataframe(
+                [
+                    {
+                        "Time": item.start_time,
+                        "Pet": item.pet_name,
+                        "Task": item.title,
+                        "Duration (min)": item.duration_minutes,
+                        "Priority": item.priority,
+                    }
+                    for item in plan
+                ],
+                hide_index=True,
+                width="stretch",
+            )
+        elif not pairs:
+            st.info("No tasks match the current filter.")
+        else:
+            st.info("No tasks fit within the available time.")
 
         with st.expander("Priority ranking (before time-boxing)"):
             ordered = scheduler.sort_tasks([task for _pet, task in pairs])
@@ -381,23 +428,6 @@ if st.button("Generate schedule", type="primary"):
                     for t in ordered
                 ]
             )
-
-        if plan:
-            st.markdown("**Today's Schedule**")
-            st.table(
-                [
-                    {
-                        "Time": item.start_time,
-                        "Pet": item.pet_name,
-                        "Task": item.title,
-                        "Duration (min)": item.duration_minutes,
-                        "Priority": item.priority,
-                    }
-                    for item in plan
-                ]
-            )
-        else:
-            st.info("No tasks fit within the available time.")
 
         st.markdown("**Why this plan**")
         st.text(scheduler.explain(plan))

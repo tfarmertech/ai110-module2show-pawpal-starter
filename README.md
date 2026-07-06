@@ -116,14 +116,61 @@ tests/test_pawpal.py::test_mark_complete_creates_next_weekly_occurrence PASSED  
 - **Recurring tasks** — `Task.mark_complete()` automatically creates the next occurrence for "daily" (+1 day) and "weekly" (+7 days) tasks, re-adding it to the pet's task list. "Once" tasks create no new instance.
 - **Conflict detection** — `Scheduler.detect_conflicts()` flags tasks scheduled at the exact same `preferred_time`, returning warning messages instead of crashing. Known limitation: it checks exact time matches only, not overlapping durations.
 
-## 📸 Demo Walkthrough
+## Demo Walkthrough
 
-Describe your app in numbered steps so a reader can follow along without watching a video:
+### Main UI Features
 
-1. <!-- Describe this step -->
-2. <!-- Describe this step -->
-3. <!-- Describe this step -->
-4. <!-- Describe this step -->
-5. <!-- Add more steps as needed -->
+PawPal+ lets a pet owner:
+- Enter and save owner settings (name, daily time budget, start time)
+- Add, view, and remove pets
+- Add, edit, and remove care tasks for any pet (title, duration, priority, category, recurrence, preferred time)
+- Pick task categories from a dropdown that remembers previously used categories, or add a new one
+- Use quick templates to speed up adding common tasks (e.g. "Morning walk," "Feeding," "Meds")
+- Filter today's tasks by pet and/or completion status
+- Generate a prioritized, time-boxed daily schedule with one click
+- See conflict warnings if two tasks are scheduled at the same time
+- Get instant green confirmations when settings, pets, or tasks are saved
 
-**Screenshot or video** *(optional)*: <!-- Insert a screenshot or link to a demo video here -->
+### Example Workflow
+
+1. Enter owner info and daily time budget (e.g. Jordan, 90 minutes, starting at 08:00) → confirmation appears.
+2. Add a pet (e.g. "Mochi," a cat) → pet appears in the list immediately.
+3. Add a second pet (e.g. "Biscuit," a dog).
+4. Add tasks to each pet — e.g. "Meds" (high priority, 5 min) and "Feeding" (high priority, 10 min) for Mochi; "Morning walk" (high priority, 30 min) and "Grooming" (low priority, 45 min) for Biscuit.
+5. Click **Generate schedule** to see a prioritized plan across both pets, with an explanation of why each task was included or skipped.
+6. Use the pet/status filters to narrow the view — e.g. show only Biscuit's incomplete tasks.
+
+### Key Scheduler Behaviors Demonstrated
+
+- **Sorting** — tasks are ordered by priority first, then shortest duration, via `Scheduler.sort_tasks()`; `Scheduler.sort_by_time()` sorts chronologically for display, pushing untimed tasks last.
+- **Time-boxed planning** — `Scheduler.generate_plan()` fits as many tasks as possible into the available time budget, skipping and explaining anything that doesn't fit.
+- **Conflict warnings** — `Scheduler.detect_conflicts()` flags tasks scheduled at the same time, shown as a Streamlit warning banner (e.g. "⚠️ Conflict: 'Walk' and 'Eat' are both scheduled at 08:00").
+- **Recurring tasks** — completing a "daily" or "weekly" task via `Task.mark_complete()` automatically creates the next occurrence with the correct due date.
+- **Filtering** — `Scheduler.filter_tasks()` narrows the displayed schedule by pet name and/or completion status.
+
+### Sample CLI Output (`python main.py`)
+
+```
+Owner: Jordan  |  Time budget: 90 min
+Today's Schedule
+====================================================
+  TIME   PET       TASK               PRIORITY
+  ------ --------- ------------------ --------
+  08:00  Mochi     Meds               high
+  08:05  Mochi     Feeding            high
+  08:15  Biscuit   Morning walk       high
+  08:45  Mochi     Play/enrichment    medium
+Why this plan:
+Plan uses 65 of 90 available minutes starting at 08:00.
+Included (ordered by priority, then shortest first):
+  Included 'Meds' for Mochi (high priority) at 08:00 - 5 min
+  Included 'Feeding' for Mochi (high priority) at 08:05 - 10 min
+  Included 'Morning walk' for Biscuit (high priority) at 08:15 - 30 min
+  Included 'Play/enrichment' for Mochi (medium priority) at 08:45 - 20 min
+Skipped:
+  Skipped 'Grooming' for Biscuit - not enough time remaining
+
+=== Conflict Detection Demo ===
+  Conflict: 'Morning walk' (Biscuit) and 'Meds' (Mochi) are both scheduled at 08:00
+  (Note: exact-time match only; duration overlaps are not detected.)
+```
